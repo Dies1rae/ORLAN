@@ -15,28 +15,35 @@
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout">
-    <item row="3" column="1" colspan="6">
+    <item row="3" column="1" colspan="7">
      <widget class="Line" name="line_4">
       <property name="orientation">
        <enum>Qt::Horizontal</enum>
       </property>
      </widget>
     </item>
-    <item row="1" column="6">
-     <layout class="QGridLayout" name="graphLayout">
-      <property name="rightMargin">
-       <number>5</number>
+    <item row="1" column="0" rowspan="4">
+     <widget class="Line" name="line_7">
+      <property name="orientation">
+       <enum>Qt::Vertical</enum>
       </property>
-     </layout>
+     </widget>
     </item>
-    <item row="4" column="4">
+    <item row="4" column="5">
      <widget class="QPushButton" name="exitPushButton">
       <property name="text">
        <string>Exit</string>
       </property>
      </widget>
     </item>
-    <item row="1" column="1" colspan="4">
+    <item row="1" column="8" rowspan="4">
+     <widget class="Line" name="line_2">
+      <property name="orientation">
+       <enum>Qt::Vertical</enum>
+      </property>
+     </widget>
+    </item>
+    <item row="1" column="1" colspan="5">
      <widget class="QTableWidget" name="coordTableWidget">
       <property name="sizeAdjustPolicy">
        <enum>QAbstractScrollArea::AdjustToContents</enum>
@@ -60,21 +67,21 @@
       </property>
      </widget>
     </item>
-    <item row="0" column="1" colspan="6">
+    <item row="0" column="1" colspan="7">
      <widget class="Line" name="line_5">
       <property name="orientation">
        <enum>Qt::Horizontal</enum>
       </property>
      </widget>
     </item>
-    <item row="5" column="1" colspan="6">
+    <item row="5" column="1" colspan="7">
      <widget class="Line" name="line_6">
       <property name="orientation">
        <enum>Qt::Horizontal</enum>
       </property>
      </widget>
     </item>
-    <item row="1" column="5">
+    <item row="1" column="6">
      <widget class="Line" name="line">
       <property name="orientation">
        <enum>Qt::Vertical</enum>
@@ -103,6 +110,20 @@
      </widget>
     </item>
     <item row="4" column="6">
+     <widget class="Line" name="line_8">
+      <property name="orientation">
+       <enum>Qt::Vertical</enum>
+      </property>
+     </widget>
+    </item>
+    <item row="4" column="4">
+     <widget class="QPushButton" name="clearDataPushButton">
+      <property name="text">
+       <string>Clear data</string>
+      </property>
+     </widget>
+    </item>
+    <item row="4" column="7">
      <spacer name="horizontalSpacer">
       <property name="orientation">
        <enum>Qt::Horizontal</enum>
@@ -115,24 +136,13 @@
       </property>
      </spacer>
     </item>
-    <item row="1" column="0" rowspan="4">
-     <widget class="Line" name="line_7">
-      <property name="orientation">
-       <enum>Qt::Vertical</enum>
+    <item row="1" column="7">
+     <widget class="QLabel" name="graphLabel">
+      <property name="text">
+       <string/>
       </property>
-     </widget>
-    </item>
-    <item row="1" column="7" rowspan="4">
-     <widget class="Line" name="line_2">
-      <property name="orientation">
-       <enum>Qt::Vertical</enum>
-      </property>
-     </widget>
-    </item>
-    <item row="4" column="5">
-     <widget class="Line" name="line_8">
-      <property name="orientation">
-       <enum>Qt::Vertical</enum>
+      <property name="scaledContents">
+       <bool>true</bool>
       </property>
      </widget>
     </item>

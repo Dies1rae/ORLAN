@@ -3,22 +3,21 @@
 
 #pragma once
 
-#include "sPoint.h"
+#include "common.h"
 
 #include <QMainWindow>
-#include <QtCharts/QValueAxis>
-#include <QtCharts/QLineSeries>
-#include <QtCharts/QChartView>
-#include <QtCharts/QtChartsVersion>
-#include <QtCharts>
+#include <QtWidgets>
 #include <QCloseEvent>
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QString>
+#include <QPixmap>
 #include <vector>
 #include <string>
 #include <fstream>
 #include <utility>
+#include <algorithm>
+#include <math.h>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -34,17 +33,27 @@ public:
 private slots:
     void on_exitPushButton_clicked();
     void on_loadPushButton_clicked();
-
     void on_switchPushButton_clicked();
-
+    void on_savePushButton_clicked();
+    void on_clearDataPushButton_clicked();
 private:
-    void MainWindow::resetGraph();
-    void MainWindow::axesPrint();
     void MainWindow::closeEvent(QCloseEvent *event);
     std::pair<std::string,std::string> splitIntoWord(const std::string& words);
+    size_t calculatePointHsh();
+    void fillPointsInfo();
+    void drawPointonGraph(const double x, const double y, const QPen& paintpen);
+    void drawAxes();
+    void clearData();
+    void clearGraphic();
+    void resizeGraphic();
+    void switchParamToDefault();
+    bool testFormatBinData(const QString& filepath);
 private:
     Ui::MainWindow *ui;
-    QtCharts::QLineSeries *graph;
+    const QIcon reaper_ico {"./ripper_ico.ico"};
     std::vector<Point> points;
+    PointInfo info;
+    QImage graph;
+    graphSizes graph_size;
 };
 #endif // MAINWINDOW_H

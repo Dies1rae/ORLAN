@@ -20,8 +20,8 @@ SOURCES += \
     mainwindow.cpp
 
 HEADERS += \
+    common.h \
     mainwindow.h \
-    sPoint.h \
     toDIgit.h
 
 FORMS += \

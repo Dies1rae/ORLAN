@@ -7,11 +7,12 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-
+    this->setWindowTitle("Coordinate ripper");
+    this->setWindowIcon(this->reaper_ico);
     ui->coordTableWidget->verticalHeader()->setVisible(true);
     ui->coordTableWidget->setShowGrid(true);
-
-    this->resetGraph();
+    ui->graphLabel->setMinimumSize(this->graph_size.default_x, this->graph_size.default_y);
+    this->clearGraphic();
 }
 
 MainWindow::~MainWindow()
@@ -32,45 +33,41 @@ void MainWindow::closeEvent (QCloseEvent *event)
     }
 }
 
-//--------------- VOT TUT TOZHE KOSTIL
-void MainWindow::resetGraph()
+void MainWindow::clearGraphic()
 {
-    QtCharts::QChart * graph = new QtCharts::QChart();
-    graph->legend()->hide();
-    QtCharts::QValueAxis *axisX = new QtCharts::QValueAxis();
-    QtCharts::QValueAxis *axisY = new QtCharts::QValueAxis();
-    graph->addAxis(axisX, Qt::AlignLeft);
-    graph->addAxis(axisY, Qt::AlignBottom);
 
-    this->graph = new QtCharts::QLineSeries(graph);
-    graph->addSeries(this->graph);
-    this->graph->attachAxis(axisX);
-    this->graph->attachAxis(axisY);
-    axisX->setRange(-50.0,50.0); //!
-    axisY->setRange(-50.0,50.0); //!
-    this->graph->setUseOpenGL(true);
-    QtCharts::QChartView* graphic_ = new QtCharts::QChartView(graph);
-    this->axesPrint();
-    ui->graphLayout->addWidget(graphic_);
+    this->graph = QImage(QSize(this->graph_size.default_x, this->graph_size.default_y), QImage::Format_RGB32);
+    this->graph.fill(Qt::white);
+    this->drawAxes();
+    ui->graphLabel->setPixmap(QPixmap::fromImage(this->graph));
 }
 
-void MainWindow::axesPrint()
+void MainWindow::drawPointonGraph(const double x, const double y, const QPen& paintpen)
 {
-    for(int ptr = 0; ptr < 50; ptr ++){ //!
-        this->graph->append(0.0,ptr);
-    }
-    for(int ptr = 0; ptr < 51; ptr ++){ //!
-        this->graph->append(ptr,0.0);
-    }
-
-    for(int ptr = 0; ptr > -50; ptr --){ //!
-        this->graph->append(ptr,0.0);
-    }
-    for(int ptr = 0; ptr > -50; ptr --){ //!
-        this->graph->append(0.0,ptr);
-    }
+    QPainter painter(&this->graph);
+    QPoint p1;
+    p1.setX(this->graph_size.default_x / 2 + x);
+    p1.setY(this->graph_size.default_y / 2 - y);
+    painter.setPen(paintpen);
+    painter.drawPoint(p1);
+    ui->graphLabel->setPixmap(QPixmap::fromImage(this->graph));
 }
-//---------------------
+
+void MainWindow::drawAxes()
+{
+    QPainter painter(&this->graph);
+    QPen paintpen(Qt::black);
+    paintpen.setWidth(this->graph_size.axes_pen_width);
+    QPoint x1{0, (this->graph_size.default_y / 2)};
+    QPoint x2{this->graph_size.default_x, (this->graph_size.default_y / 2)};
+    QLine x_axe{x1, x2};
+    QPoint y1{(this->graph_size.default_x / 2), 0};
+    QPoint y2{(this->graph_size.default_x / 2), this->graph_size.default_y};
+    QLine y_axe{y1, y2};
+    painter.setPen(paintpen);
+    painter.drawLine(x_axe);
+    painter.drawLine(y_axe);
+}
 
 void MainWindow::on_exitPushButton_clicked()
 {
@@ -88,9 +85,32 @@ std::pair<std::string,std::string> MainWindow::splitIntoWord(const std::string& 
 
 void MainWindow::on_loadPushButton_clicked()
 {
-    QString coord_filepath = QFileDialog::getOpenFileName(this, tr("Open File"), "./", "TXT Files (*.txt);; All files (*.*)");
+
+    this->clearData();
+    QString coord_filepath = QFileDialog::getOpenFileName(this, tr("Open File"), "./", "TXT Files (*.txt);; BIN Files (*.bin);; All files (*.*)");
+
     std::ifstream coord_file(coord_filepath.toStdString(), std::ios::in);
+    if(!coord_file) {
+        QMessageBox::information(this, tr("Error"),  "No data to open");
+        return;
+    }
     std::vector<std::pair<std::string,std::string>> parsed_str_coords;
+
+    bool loadingFromBin = false;
+    PointInfo binLoadedInfo;
+    if(coord_filepath.toStdString().find(".bin") != std::string::npos) {
+        loadingFromBin = true;
+    }
+    if(loadingFromBin) {
+        std::string tmp_info;
+        std::getline(coord_file, tmp_info);
+        std::getline(coord_file, tmp_info);
+        std::getline(coord_file, tmp_info);
+        binLoadedInfo.data_hash_ = (size_t)digcnv::toDigit(tmp_info.substr(tmp_info.rfind(':') + 1)).AsDouble();
+        std::cout << binLoadedInfo.data_hash_ << std::endl;
+        //std::getline(coord_file, tmp_info);
+    }
+
     while(!coord_file.eof()){
         std::string tmp_coords_pair;
         std::getline(coord_file, tmp_coords_pair);
@@ -103,17 +123,33 @@ void MainWindow::on_loadPushButton_clicked()
             }
         }
     }
+    coord_file.close();
+    this->fillPointsInfo();
+
+    if(loadingFromBin && binLoadedInfo.data_hash_ != this->info.data_hash_) {
+         std::cerr << "Load from file error" << std::endl;
+         QMessageBox::information(this, tr("Error"),  "Data corrupted");
+         return;
+    } else if(loadingFromBin && binLoadedInfo.data_hash_ == this->info.data_hash_) {
+        QMessageBox::information(this, tr("Information"),  "Data restored complete");
+    }
+
+    this->switchParamToDefault();
+    this->resizeGraphic();
+    this->clearGraphic();
     for(size_t ptr = 0; ptr < this->points.size(); ptr++){
         QTableWidgetItem * item_x = new QTableWidgetItem(QString::number(this->points[ptr].x_));
         QTableWidgetItem * item_y = new QTableWidgetItem( QString::number(this->points[ptr].y_));
         ui->coordTableWidget->insertRow(ptr);
         ui->coordTableWidget->setItem(ptr,0,item_x);
         ui->coordTableWidget->setItem(ptr,1,item_y);
+        QPen paintpen(Qt::red);
+        paintpen.setWidth(this->graph_size.point_pen_width);
+        this->drawPointonGraph(this->points[ptr].x_, this->points[ptr].y_, paintpen);
     }
 
-    ui->coordTableWidget->show();
 
-    coord_file.close();
+    ui->coordTableWidget->show();
 }
 
 
@@ -122,14 +158,143 @@ void MainWindow::on_switchPushButton_clicked()
     for(auto& pr : this->points) {
         std::swap(pr.x_, pr.y_);
     }
-
+    this->switchParamToDefault();
+    this->resizeGraphic();
+    this->clearGraphic();
     ui->coordTableWidget->clear();
     for(size_t ptr = 0; ptr < this->points.size(); ptr++){
         QTableWidgetItem * item_x = new QTableWidgetItem(QString::number(this->points[ptr].x_));
         QTableWidgetItem * item_y = new QTableWidgetItem( QString::number(this->points[ptr].y_));
         ui->coordTableWidget->setItem(ptr,0,item_x);
         ui->coordTableWidget->setItem(ptr,1,item_y);
+        QPen paintpen(Qt::red);
+        paintpen.setWidth(this->graph_size.point_pen_width);
+        this->drawPointonGraph(this->points[ptr].x_, this->points[ptr].y_, paintpen);
+    }
+    ui->coordTableWidget->show();
+}
+
+void MainWindow::fillPointsInfo()
+{
+    this->info.size_ = this->points.size();
+    this->info.pair_size_ = this->points.size() / 2;
+    this->info.data_hash_ = this->calculatePointHsh();
+}
+
+size_t MainWindow::calculatePointHsh()
+{
+    size_t hsh = 0;
+    size_t deg = 0;
+   for(const auto& p : this->points){
+       deg++;
+       hsh += std::pow(p.x_, deg) + std::pow(p.y_, deg + 1);
+   }
+   return hsh * this->info.hasher_salt_;
+}
+
+void MainWindow::on_savePushButton_clicked()
+{
+    if(!this->points.empty()) {
+        QString dst_filepath = QFileDialog::getSaveFileName(this, tr("Save File"), "./", "BIN Files (*.bin);; All files (*.*)");
+        std::ofstream dst_bin;
+        dst_bin.open(dst_filepath.toStdString(), std::ofstream::out | std::ofstream::binary);
+        if(!dst_bin) {
+            std::cerr << "File save error" << std::endl;
+            QMessageBox::information(this, tr("Error"),  "File save error");
+        }
+        this->fillPointsInfo();
+        dst_bin << "info\n";
+        dst_bin << "doubleXY\n";
+        dst_bin << this->info.hasher_salt_ << ':';
+        dst_bin << this->info.size_ << ':';
+        dst_bin << this->info.pair_size_ << ':';
+        dst_bin << this->info.data_hash_ << '\n';
+        dst_bin << "data\n";
+        for(const auto& pt : this->points) {
+            dst_bin << pt.x_ << ';' << pt.y_ << '\n';
+        }
+        dst_bin.close();
+    } else {
+        QMessageBox::information(this, tr("Error"),  "No data to save");
+    }
+}
+
+void MainWindow::clearData()
+{
+    ui->coordTableWidget->clear();
+    ui->coordTableWidget->setRowCount(0);
+    this->points.clear();
+    this->clearGraphic();
+}
+
+void MainWindow::on_clearDataPushButton_clicked()
+{
+     this->clearData();
+}
+
+//This func is really bad
+void MainWindow::resizeGraphic()
+{
+    int minX = MAXINT;
+    int maxX = 0;
+    int minY = MAXINT;
+    int maxY = 0;
+    for(size_t ptr = 0; ptr < this->points.size(); ptr++) {
+        if(this->points[ptr].x_ > maxX) {
+            maxX = this->points[ptr].x_;
+        }
+        if(this->points[ptr].x_ < minX) {
+            minX = this->points[ptr].x_;
+        }
+        if(this->points[ptr].y_ > maxY) {
+            maxY = this->points[ptr].y_;
+        }
+        if(this->points[ptr].y_ < minY) {
+            minY = this->points[ptr].y_;
+        }
     }
 
-    ui->coordTableWidget->show();
+    if(maxX > this->graph_size.default_x / 2) {
+        while(maxX > this->graph_size.default_x / 2) {
+            this->graph_size.default_x += this->graph_size.default_x;
+            this->graph_size.point_pen_width++;
+            this->graph_size.axes_pen_width++;
+        }
+    }
+    if(minX < -1 * (this->graph_size.default_x / 2)) {
+        while(minX < -1 * (this->graph_size.default_x / 2)) {
+            this->graph_size.default_x += graph_size.default_x;
+            this->graph_size.point_pen_width++;
+            this->graph_size.axes_pen_width++;
+        }
+    }
+    if(maxY > this->graph_size.default_y / 2) {
+        while(maxY > this->graph_size.default_y / 2) {
+            this->graph_size.default_y += this->graph_size.default_y;
+            this->graph_size.point_pen_width++;
+            this->graph_size.axes_pen_width++;
+        }
+    }
+    if(minY < -1 * (this->graph_size.default_y / 2)) {
+        while(minY < -1 * (this->graph_size.default_y / 2)) {
+            this->graph_size.default_y += this->graph_size.default_y;
+            this->graph_size.point_pen_width++;
+            this->graph_size.axes_pen_width++;
+        }
+    }
+}
+//--------
+
+void MainWindow::switchParamToDefault()
+{
+    this->graph_size = {};
+}
+
+bool MainWindow::testFormatBinData(const QString& filepath)
+{
+    std::ifstream coord_file(filepath.toStdString(), std::ios::in);
+    if(!coord_file) {
+        return false;
+    }
+
 }
