@@ -31,4 +31,4 @@ TXT;;BIN
         doubleXY\n
         23:N;N\2;HSH - (соль, общее число чисел, число координат, хэш)
         data\n
-        %COORDS PARE%
+        %COORDS PAIR%
