@@ -13,7 +13,6 @@
 #include <QString>
 #include <QPixmap>
 #include <vector>
-#include <string>
 #include <fstream>
 #include <utility>
 #include <algorithm>
@@ -37,9 +36,11 @@ private slots:
     void on_savePushButton_clicked();
     void on_clearDataPushButton_clicked();
 private:
-    void MainWindow::closeEvent(QCloseEvent *event);
+    void on_loadFormBin(const QString& filepath);
+    void on_loadFormTxt(const QString& filepath);
+    void closeEvent(QCloseEvent *event);
     std::pair<std::string,std::string> splitIntoWord(const std::string& words);
-    size_t calculatePointHsh();
+    std::string calculatePointHsh();
     void fillPointsInfo();
     void drawPointonGraph(const double x, const double y, const QPen& paintpen);
     void drawAxes();
@@ -47,7 +48,6 @@ private:
     void clearGraphic();
     void resizeGraphic();
     void switchParamToDefault();
-    bool testFormatBinData(const QString& filepath);
 private:
     Ui::MainWindow *ui;
     const QIcon reaper_ico {"./ripper_ico.ico"};

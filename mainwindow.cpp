@@ -85,32 +85,49 @@ std::pair<std::string,std::string> MainWindow::splitIntoWord(const std::string& 
 
 void MainWindow::on_loadPushButton_clicked()
 {
-
     this->clearData();
     QString coord_filepath = QFileDialog::getOpenFileName(this, tr("Open File"), "./", "TXT Files (*.txt);; BIN Files (*.bin);; All files (*.*)");
+    if(coord_filepath.toStdString().find(".bin") != std::string::npos) {
+        this->on_loadFormBin(coord_filepath);
 
-    std::ifstream coord_file(coord_filepath.toStdString(), std::ios::in);
+    } else {
+        this->on_loadFormTxt(coord_filepath);
+    }
+    this->switchParamToDefault();
+    this->resizeGraphic();
+    this->clearGraphic();
+    for(size_t ptr = 0; ptr < this->points.size(); ptr++){
+        QTableWidgetItem * item_x = new QTableWidgetItem(QString::number(this->points[ptr].x_));
+        QTableWidgetItem * item_y = new QTableWidgetItem( QString::number(this->points[ptr].y_));
+        ui->coordTableWidget->insertRow(ptr);
+        ui->coordTableWidget->setItem(ptr,0,item_x);
+        ui->coordTableWidget->setItem(ptr,1,item_y);
+        QPen paintpen(Qt::red);
+        paintpen.setWidth(this->graph_size.point_pen_width);
+        this->drawPointonGraph(this->points[ptr].x_, this->points[ptr].y_, paintpen);
+    }
+    ui->coordTableWidget->show();
+}
+
+void MainWindow::on_loadFormBin(const QString& filepath)
+{
+    std::ifstream coord_file(filepath.toStdString(), std::ios::in);
     if(!coord_file) {
         QMessageBox::information(this, tr("Error"),  "No data to open");
         return;
     }
-    std::vector<std::pair<std::string,std::string>> parsed_str_coords;
-
-    bool loadingFromBin = false;
     PointInfo binLoadedInfo;
-    if(coord_filepath.toStdString().find(".bin") != std::string::npos) {
-        loadingFromBin = true;
-    }
-    if(loadingFromBin) {
-        std::string tmp_info;
-        std::getline(coord_file, tmp_info);
-        std::getline(coord_file, tmp_info);
-        std::getline(coord_file, tmp_info);
-        binLoadedInfo.data_hash_ = (size_t)digcnv::toDigit(tmp_info.substr(tmp_info.rfind(':') + 1)).AsDouble();
-        std::cout << binLoadedInfo.data_hash_ << std::endl;
-        //std::getline(coord_file, tmp_info);
-    }
-
+    std::string tmp_info;
+    std::getline(coord_file, tmp_info);
+    std::getline(coord_file, tmp_info);
+    std::getline(coord_file, tmp_info);
+    auto delim = tmp_info.find(':');
+    delim = tmp_info.find(':', delim + 1);
+    binLoadedInfo.size_ =  digcnv::toDigit(tmp_info.substr(delim + 1, 1)).AsInt();
+    binLoadedInfo.pair_size_ = digcnv::toDigit(tmp_info.substr(delim + 1, tmp_info.rfind(':') - delim - 1)).AsInt();
+    binLoadedInfo.data_hash_ = tmp_info.substr(tmp_info.rfind(':') + 1);
+    std::getline(coord_file, tmp_info);
+    std::vector<std::pair<std::string,std::string>> parsed_str_coords;
     while(!coord_file.eof()){
         std::string tmp_coords_pair;
         std::getline(coord_file, tmp_coords_pair);
@@ -125,33 +142,38 @@ void MainWindow::on_loadPushButton_clicked()
     }
     coord_file.close();
     this->fillPointsInfo();
-
-    if(loadingFromBin && binLoadedInfo.data_hash_ != this->info.data_hash_) {
+    if(binLoadedInfo.data_hash_ != this->info.data_hash_) {
          std::cerr << "Load from file error" << std::endl;
          QMessageBox::information(this, tr("Error"),  "Data corrupted");
          return;
-    } else if(loadingFromBin && binLoadedInfo.data_hash_ == this->info.data_hash_) {
+    } else if(binLoadedInfo.data_hash_ == this->info.data_hash_) {
         QMessageBox::information(this, tr("Information"),  "Data restored complete");
     }
-
-    this->switchParamToDefault();
-    this->resizeGraphic();
-    this->clearGraphic();
-    for(size_t ptr = 0; ptr < this->points.size(); ptr++){
-        QTableWidgetItem * item_x = new QTableWidgetItem(QString::number(this->points[ptr].x_));
-        QTableWidgetItem * item_y = new QTableWidgetItem( QString::number(this->points[ptr].y_));
-        ui->coordTableWidget->insertRow(ptr);
-        ui->coordTableWidget->setItem(ptr,0,item_x);
-        ui->coordTableWidget->setItem(ptr,1,item_y);
-        QPen paintpen(Qt::red);
-        paintpen.setWidth(this->graph_size.point_pen_width);
-        this->drawPointonGraph(this->points[ptr].x_, this->points[ptr].y_, paintpen);
-    }
-
-
-    ui->coordTableWidget->show();
 }
 
+void MainWindow::on_loadFormTxt(const QString& filepath)
+{
+    std::ifstream coord_file(filepath.toStdString(), std::ios::in);
+    if(!coord_file) {
+        QMessageBox::information(this, tr("Error"),  "No data to open");
+        return;
+    }
+    std::vector<std::pair<std::string,std::string>> parsed_str_coords;
+    while(!coord_file.eof()){
+        std::string tmp_coords_pair;
+        std::getline(coord_file, tmp_coords_pair);
+        if(!tmp_coords_pair.empty()) {
+            try {
+                std::pair<std::string,std::string> pair_std_coords = this->splitIntoWord(tmp_coords_pair);
+                this->points.push_back({ digcnv::toDigit(pair_std_coords.first).AsDouble(), digcnv::toDigit(pair_std_coords.second).AsDouble() });
+            } catch(...){
+                std::cerr << "Load from file error" << std::endl;
+            }
+        }
+    }
+    coord_file.close();
+    this->fillPointsInfo();
+}
 
 void MainWindow::on_switchPushButton_clicked()
 {
@@ -181,15 +203,15 @@ void MainWindow::fillPointsInfo()
     this->info.data_hash_ = this->calculatePointHsh();
 }
 
-size_t MainWindow::calculatePointHsh()
+std::string MainWindow::calculatePointHsh()
 {
     size_t hsh = 0;
     size_t deg = 0;
-   for(const auto& p : this->points){
-       deg++;
-       hsh += std::pow(p.x_, deg) + std::pow(p.y_, deg + 1);
-   }
-   return hsh * this->info.hasher_salt_;
+    for(const auto& p : this->points){
+        deg++;
+        hsh += std::pow(p.x_, deg) + std::pow(p.y_, deg + 1);
+    }
+    return std::to_string(hsh * this->info.hasher_salt_);
 }
 
 void MainWindow::on_savePushButton_clicked()
@@ -235,9 +257,9 @@ void MainWindow::on_clearDataPushButton_clicked()
 //This func is really bad
 void MainWindow::resizeGraphic()
 {
-    int minX = MAXINT;
+    int minX = INT_MAX;
     int maxX = 0;
-    int minY = MAXINT;
+    int minY = INT_MAX;
     int maxY = 0;
     for(size_t ptr = 0; ptr < this->points.size(); ptr++) {
         if(this->points[ptr].x_ > maxX) {
@@ -283,18 +305,8 @@ void MainWindow::resizeGraphic()
         }
     }
 }
-//--------
 
 void MainWindow::switchParamToDefault()
 {
     this->graph_size = {};
-}
-
-bool MainWindow::testFormatBinData(const QString& filepath)
-{
-    std::ifstream coord_file(filepath.toStdString(), std::ios::in);
-    if(!coord_file) {
-        return false;
-    }
-
 }

@@ -172,7 +172,7 @@ namespace digcnv {
 				ptr++;
 			}
 
-			if (this->AsInt()) {
+            if (this->IsInt()) {
 				this->converted_ = val_parts.int_part_;
 			} else {
 				double res = (double)val_parts.int_part_ + val_parts.fract_part_;
